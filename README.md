@@ -1,4 +1,4 @@
-depoly link ; https://vanillaragsystemgit-e3uemcg3qdiqt7drerkqho.streamlit.app/
+frontend ui depoly link ; https://vanillaragsystemgit-e3uemcg3qdiqt7drerkqho.streamlit.app/
 
 # 🛡️ Defence RAG System
 
