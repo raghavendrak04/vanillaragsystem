@@ -1,0 +1,21 @@
+# Core dependencies
+PyPDF2>=3.0.0
+pdfplumber>=0.10.0
+chromadb>=0.5.0
+python-dotenv>=1.0.0
+
+# OpenAI (optional — install if using OpenAI provider)
+openai>=1.30.0
+
+# Google Gemini (optional — install if using Gemini provider)
+google-genai>=1.0.0
+
+# Text processing
+langchain-text-splitters>=0.2.0
+
+# Evaluation
+scikit-learn>=1.4.0
+pandas>=2.2.0
+
+# Progress bars
+tqdm>=4.66.0

@@ -1,0 +1,18 @@
+# Environments and local secrets
+.env
+.env.local
+
+# Local SQLite / vector databases
+chroma_db/
+
+# Python caching and build files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.ipynb_checkpoints/
+
+# System files
+.DS_Store
+Thumbs.db
