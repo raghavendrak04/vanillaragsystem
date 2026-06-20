@@ -61,25 +61,55 @@ def _generate_gemini(messages: list[dict], model: str, api_key: str) -> str:
     return response.text.strip()
 
 
-def _generate_with_retry(messages: list[dict], provider: str, model: str, api_key: str, max_retries: int = 3) -> str:
-    """Generate with exponential backoff retry on rate limits."""
-    for attempt in range(max_retries):
-        try:
-            if provider == "openai":
-                return _generate_openai(messages, model, api_key)
-            elif provider == "gemini":
-                return _generate_gemini(messages, model, api_key)
-            else:
-                raise ValueError(f"Unknown provider: {provider}")
-        except Exception as e:
-            error_str = str(e).lower()
-            is_rate_limit = "429" in str(e) or "rate" in error_str or "quota" in error_str or "exhausted" in error_str
-            if is_rate_limit and attempt < max_retries - 1:
-                wait = 20 * (2 ** attempt)
-                print(f"  [WAIT] LLM rate limited (attempt {attempt+1}), waiting {wait}s...")
-                time.sleep(wait)
-            else:
-                raise
+def _generate_with_retry(messages: list[dict], provider: str, model: str, api_key: str, max_retries: int = 3) -> tuple[str, str]:
+    """
+    Generate with exponential backoff retry on rate limits and fallback to alternate models
+    if the primary model is rate-limited (429) or not supported (404).
+    
+    Returns a tuple: (generated_text, model_actually_used)
+    """
+    models_to_try = [model]
+    if provider == "gemini":
+        fallbacks = ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+        for f in fallbacks:
+            if f not in models_to_try:
+                models_to_try.append(f)
+                
+    last_exception = None
+    for current_model in models_to_try:
+        for attempt in range(max_retries):
+            try:
+                if provider == "openai":
+                    res = _generate_openai(messages, current_model, api_key)
+                    return res, current_model
+                elif provider == "gemini":
+                    res = _generate_gemini(messages, current_model, api_key)
+                    return res, current_model
+                else:
+                    raise ValueError(f"Unknown provider: {provider}")
+            except Exception as e:
+                last_exception = e
+                error_str = str(e).lower()
+                is_rate_limit = "429" in str(e) or "rate" in error_str or "quota" in error_str or "exhausted" in error_str
+                is_not_found = "404" in str(e) or "not found" in error_str or "not supported" in error_str
+                
+                # If it's 404 (model doesn't exist) or we exhausted retries on 429, try the next model
+                if is_not_found or (is_rate_limit and attempt == max_retries - 1):
+                    if len(models_to_try) > 1 and current_model != models_to_try[-1]:
+                        print(f"  [FALLBACK] Model {current_model} failed (Error: {error_str}). Trying next fallback model...")
+                        break
+                
+                if is_rate_limit and attempt < max_retries - 1:
+                    wait = 20 * (2 ** attempt)
+                    print(f"  [WAIT] LLM rate limited on {current_model} (attempt {attempt+1}), waiting {wait}s...")
+                    time.sleep(wait)
+                else:
+                    if current_model == models_to_try[-1]:
+                        raise
+                    break
+                    
+    if last_exception:
+        raise last_exception
 
 
 def generate_answer(
@@ -95,7 +125,7 @@ def generate_answer(
     context = format_context(search_results)
     messages = build_rag_prompt(question, context)
 
-    answer = _generate_with_retry(messages, provider, model, api_key)
+    answer, used_model = _generate_with_retry(messages, provider, model, api_key)
 
     citations = [r.citation() for r in search_results]
 
@@ -103,7 +133,7 @@ def generate_answer(
         "answer": answer,
         "citations": citations,
         "context_used": len(search_results),
-        "model": f"{provider}/{model}",
+        "model": f"{provider}/{used_model}",
         "search_results": search_results,
     }
 
@@ -113,4 +143,5 @@ def generate_raw(messages: list[dict], provider: Optional[str] = None) -> str:
     provider = provider or config.LLM_PROVIDER
     api_key = config.get_api_key(provider)
     model = config.get_llm_model(provider)
-    return _generate_with_retry(messages, provider, model, api_key)
+    answer, _ = _generate_with_retry(messages, provider, model, api_key)
+    return answer
