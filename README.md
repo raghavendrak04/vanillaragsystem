@@ -1,3 +1,5 @@
+depoly link ; https://vanillaragsystemgit-e3uemcg3qdiqt7drerkqho.streamlit.app/
+
 # 🛡️ Defence RAG System
 
 An intelligent, Retrieval-Augmented Generation (RAG) system built to parse, search, and reason over Indian Naval Regulations and Defence Procurement Policies. 
