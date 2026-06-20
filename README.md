@@ -10,12 +10,101 @@ Navigating massive regulatory documents like the `RegsNavyIV.pdf` is time-consum
 2. **Synthesize Complex Rules:** Use advanced LLMs to answer complex questions without hallucinating.
 3. **Ensure Transparency:** Provide a UI that explicitly shows *what* the system is doing, *how long* it takes, and *which exact texts* it's relying on.
 
-## 🏗️ Architecture
-The system follows a modular, best-practice RAG architecture:
+## 🏗️ Architecture & Design Plan
+
+The system follows a modular, best-practice RAG (Retrieval-Augmented Generation) pipeline:
+
+### 1. System Pipeline Flow
+```
+========================================================================================
+                                   INGESTION STAGE
+========================================================================================
+   [source/*.pdf] ──> [loader.py] ──> [chunker.py] ──> [embedder.py] ──> [vector_store.py]
+   (PDF Documents)   (Extract PDF)   (Token Chunk)   (Create Vector)    (Save to ChromaDB)
+
+========================================================================================
+                                RETRIEVAL & GENERATION
+========================================================================================
+   [User Query] ──────> [search.py] ──────> [vector_store.py]
+                            │                     │
+                            ▼                     ▼
+                     (Retrieve Top-K Chunks) ──> (Pass Relevant Context)
+                                                      │
+                                                      ▼
+   [Refined Answer] <── [llm.py] <── [prompt.py] ◄────┘
+   (With Citations)   (Gemini 2.5)  (System Prompt)
+```
+
+### 2. Detailed Component Diagram
+```mermaid
+graph TD
+    subgraph Ingestion
+        A[source/ PDFs] --> B(loader.py: Extract PDF text)
+        B --> C(chunker.py: Recursive Character Splitting)
+        C --> D(embedder.py: gemini-embedding-001)
+        D --> E[(ChromaDB: vector_store.py)]
+    end
+
+    subgraph Querying
+        F[User Question / Streamlit UI] --> G(search.py: Retrieval)
+        E -->|Retrieve Top-K Chunks| G
+        G --> H(prompt.py: Construct RAG prompt)
+        H --> I(llm.py: gemini-2.5-flash)
+        I --> J[Grounded Response + Citations]
+    end
+
+    subgraph Evaluation
+        K[evaluator/evaluate.py] -->|Test Queries| G
+        I -->|Compute Metrics| L(evaluator/metrics.py: Precision, MRR, Citation check)
+        L --> M[Evaluation Report]
+    end
+```
+
+### 3. Pipeline Component Descriptions
 - **Ingestion (`ingest/`)**: Uses `pdfplumber` to extract text from PDFs, and `RecursiveCharacterTextSplitter` to cleanly chunk the text (1000 chars, 200 overlap).
 - **Embeddings & Vector Store (`retriever/`)**: Uses Google's `gemini-embedding-001` with exponential backoff for rate limits, storing vectors persistently in `ChromaDB`.
-- **Generation (`generator/`)**: Prompts the LLM to strictly rely on retrieved context and generate citations.
+- **Generation (`generator/`)**: Prompts the LLM (`gemini-2.5-flash`) to strictly rely on retrieved context and generate citations.
 - **Evaluation (`evaluator/`)**: Computes Retrieval Precision, MRR, Citation Validity, and Hallucination rates.
+
+---
+
+## 📂 Project Directory Structure
+
+Here is an overview of the directory structure of the repository:
+
+```
+jaggaer/
+├── .env                  # Local secret keys (ignored by git)
+├── .env.example          # Template for environment configuration
+├── .gitignore            # Git exclusion rules
+├── README.md             # Project documentation (this file)
+├── requirements.txt      # Python dependencies
+├── app.py                # Streamlit Frontend Web Interface
+├── config.py             # System configurations and model definitions
+├── main.py               # CLI Entrypoint (Ingest, Query, Evaluate)
+├── extract_pdf.py        # Diagnostic utility to inspect PDF texts
+├── source/               # Document directory for policy PDFs
+│   └── RegsNavyIV.pdf    # Target PDF document on Navy regulations
+├── ingest/               # Document ingestion pipeline
+│   ├── __init__.py
+│   ├── loader.py         # PDF page extraction using pdfplumber
+│   ├── chunker.py        # Semantic/token chunking logic
+│   └── embedder.py       # Vector embedding creation (Gemini API)
+├── retriever/            # Context retrieval system
+│   ├── __init__.py
+│   ├── search.py         # Cosine similarity and Chroma query interface
+│   └── vector_store.py   # ChromaDB database operations
+├── generator/            # Response generation module
+│   ├── __init__.py
+│   ├── llm.py            # LLM wrapper & rate-limit handling (Gemini 2.5)
+│   └── prompt.py         # Grounding & citation system prompt
+└── evaluator/            # Evaluation & metrics engine
+    ├── __init__.py
+    ├── evaluate.py       # Test query execution engine
+    └── metrics.py        # Precision, MRR, & citation validation logic
+```
+
+---
 
 ## 🚀 How to Run Locally
 
