@@ -149,7 +149,62 @@ python main.py query "What are the eligibility criteria for recruitment?" --verb
 python main.py evaluate --samples
 ```
 
+---
+
+## 📸 Output — Working Locally
+
+Below are screenshots of the system running locally on `http://localhost:8501`, demonstrating end-to-end query answering with full transparency.
+
+### Query 1: *"What are the eligibility criteria for recruitment?"*
+
+![Query 1 — Eligibility Criteria for Recruitment](output/Defence_RAG_System_2026-06-21T11-43-55.png)
+
+- **Total Time:** 11.5s (Search: 2.48s, LLM Generation: 8.99s)
+- **Model Used:** `gemini-2.5-flash`
+- The system retrieves **5 relevant chunks** from `RegsNavyIV.pdf` and generates a structured answer covering:
+  - Eligibility for Entry by Nationality/Origin (citizens of India, Bhutan, Nepal, etc.)
+  - Certificate of Eligibility requirements for non-citizens
+  - Eligibility for Enrolment as a Member of the Service (General Conditions)
+- All claims are **grounded with page-level citations** (e.g., *Source: RegsNavyIV, Page 9, Page 10, Page 14*).
+
+### Query 2: *"Under what conditions can personnel on the 'Retired List' be called back into actual service, and what is the age limit for remaining on this list?"*
+
+![Query 2 — Retired List Conditions](output/Defence_RAG_System_2026-06-21T12-08-20.png)
+
+- **Total Time:** 5.8s (Search: 0.80s, LLM Generation: 4.98s)
+- **Model Used:** `gemini-2.5-flash`
+- This is a **hard, multi-hop question** requiring cross-referencing across multiple regulation sections.
+- The system correctly identifies the 3 conditions for recall:
+  1. Must not have attained the age of sixty years
+  2. Must be medically fit
+  3. May be called up in the event of an emergency or whenever required
+- The system also **honestly states** when it cannot find sufficient information for part of the question (age limit for remaining on the list vs. being called up), demonstrating its **anti-hallucination grounding**.
+- Also shows the system correctly **refusing to answer an out-of-scope question** about cybersecurity protocols.
+
+---
+
 ## 📊 Features
 - **Dynamic UI:** Glassmorphism design, real-time step trackers, and detailed timing metrics.
 - **Rate Limit Handlers:** Automatic exponential backoff and batching (20 chunks/batch) to seamlessly work on the Gemini free tier.
 - **Strict Grounding:** The model is explicitly trained to refuse unanswerable questions to prevent hallucinations.
+
+---
+
+## 📁 Dataset
+
+**Source:** [DefenceRAG: Procurement & Policy Reasoning Challenge — Kaggle](https://www.kaggle.com/competitions/defence-rag-procurement-policy-reasoning-challenge/data)
+
+This project uses the dataset from the Kaggle competition **"DefenceRAG: Procurement & Policy Reasoning Challenge"**. Key details:
+
+- **Objective:** Build RAG systems to interpret defence procurement rules, financial delegations, and naval regulations with explainable answers.
+- **Core Document:** `RegsNavyIV.pdf` — *The Indian Naval Auxiliary Service Regulations, 1973* (Amendments to the Regulations for the Navy, 1965).
+- **Document Coverage:**
+  - Chapter I — Preliminary (Definitions, Short Title, Commencement)
+  - Chapter II — Officers (Branches, Commissions, Examinations, Probation, Promotion, Secondment, Retirement)
+  - Chapter III — Sailors (Recruitment, Promotion, Transfer, Discharges, Retirements)
+  - Chapter IV — Appointment and Duties (Permanent Staff, Duties of Officers)
+  - Chapters V–XI — Training, Uniforms, Discipline, Pay & Allowances, Accommodation, Leave, Pensions & Gratuities
+  - Schedules I–XI — Forms, Terms of Service, Uniform Items, Tentage Scales
+- **Total Pages:** 99 pages of statutory naval regulations
+- **Challenge Type:** Question-answering with citation and grounding requirements
+- **Evaluation Criteria:** Retrieval Precision, MRR (Mean Reciprocal Rank), Citation Validity, and Hallucination Detection
